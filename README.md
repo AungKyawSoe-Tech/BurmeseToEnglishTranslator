@@ -12,22 +12,42 @@ A modern and intuitive web application to translate text from Burmese to English
 *   **PWA Ready:** "Install" the app on your Android or iPhone for easy access from your home screen.
 *   **Ready for the Play Store:** Package the app for Android and the Google Play Store.
 
+---
+
+## Getting Started: Setting Up Your API Key
+
+Before you can run or deploy the app, you need to provide your Google Gemini API key.
+
+### For Local Development & Testing
+
+1.  **Get your API Key:** If you don't have one, get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2.  **Create your config file:** In the project's root directory, find the file named `config.example.ts`.
+3.  **Rename the file** from `config.example.ts` to `config.ts`.
+4.  **Add your key:** Open the new `config.ts` and paste your API key into the placeholder string.
+
+Your `config.ts` file is listed in `.gitignore`, so it will be kept private on your computer and never uploaded to GitHub.
+
+### For Production Deployment (Vercel)
+
+When you deploy your app to Vercel, you will use its Environment Variables system. This is the secure, standard way to handle secrets in production. The instructions are in the deployment section below.
+
+---
+
 ## How to Deploy (So your friends can try it!)
 
 To share this application, you need to host it online. We recommend using Vercel, a free and easy-to-use hosting service for web projects.
 
 ### Prerequisites
 
-1.  **Google Gemini API Key:** You'll need an API key from Google AI Studio. You can get one for free [here](https://aistudio.google.com/app/apikey).
-2.  **GitHub Account:** You'll need a free GitHub account to store your code.
-3.  **Vercel Account:** Sign up for a free Vercel account using your GitHub account.
+1.  **GitHub Account:** You'll need a free GitHub account to store your code.
+2.  **Vercel Account:** Sign up for a free Vercel account using your GitHub account.
 
 ### Step-by-Step Deployment Guide
 
 **Step 1: Push Your Code to GitHub**
 
 1.  Create a new repository on GitHub.
-2.  Follow the instructions on GitHub to push your project files (`index.html`, `index.tsx`, etc.) to this new repository.
+2.  Follow the instructions on GitHub to push your project files to this new repository. **Do not** push your `config.ts` file (it should be ignored automatically by `.gitignore`).
 
 **Step 2: Deploy with Vercel**
 

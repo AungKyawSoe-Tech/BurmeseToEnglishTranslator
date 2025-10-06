@@ -9,13 +9,16 @@ const LanguageIcon = () => (
 export const Header: React.FC = () => {
   return (
     <header className="text-center">
+      <p className="text-base text-slate-500 dark:text-slate-400 mb-2 font-mono">
+        Aung Kyaw Soe vibe coded using Google AI Studio
+      </p>
       <div className="flex justify-center items-center gap-4">
         <LanguageIcon />
         <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Burmese &lt;&gt; English Translator
         </h1>
       </div>
-      <p className="mt-4 text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+      <p className="mt-4 text-base text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
         Instantly translate between Burmese and English. Use your voice or keyboard, and listen to the translation.
       </p>
     </header>
