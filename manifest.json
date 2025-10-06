@@ -1,0 +1,22 @@
+{
+  "name": "Burmese <> English Translator",
+  "short_name": "Translator",
+  "description": "A modern and intuitive web application to translate text from Burmese to English using the power of the Gemini API.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0e7490",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
