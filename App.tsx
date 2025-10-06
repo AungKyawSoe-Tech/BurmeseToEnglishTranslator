@@ -1,31 +1,58 @@
 
 import React, { useState, useCallback } from 'react';
-import { translateBurmeseToEnglish } from './services/geminiService';
+import { translateBurmeseToEnglish, translateEnglishToBurmese } from './services/geminiService';
 import { Header } from './components/Header';
 import { LanguagePanel } from './components/LanguagePanel';
 import { TranslateButton } from './components/TranslateButton';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
 
+type Language = 'burmese' | 'english';
+
 function App() {
   const [burmeseText, setBurmeseText] = useState<string>('');
   const [englishText, setEnglishText] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourceLanguage, setSourceLanguage] = useState<Language>('burmese');
+
+  const handleBurmeseChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setBurmeseText(e.target.value);
+    setSourceLanguage('burmese');
+  };
+
+  const handleEnglishChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEnglishText(e.target.value);
+    setSourceLanguage('english');
+  };
 
   const handleTranslate = useCallback(async () => {
-    if (!burmeseText.trim()) {
-      setError('Please enter some Burmese text to translate.');
+    const isBurmeseSource = sourceLanguage === 'burmese';
+    const sourceText = isBurmeseSource ? burmeseText : englishText;
+
+    if (!sourceText.trim()) {
+      setError(`Please enter some ${isBurmeseSource ? 'Burmese' : 'English'} text to translate.`);
       return;
     }
 
     setIsLoading(true);
     setError(null);
-    setEnglishText('');
+    if (isBurmeseSource) {
+      setEnglishText('');
+    } else {
+      setBurmeseText('');
+    }
 
     try {
-      const translation = await translateBurmeseToEnglish(burmeseText);
-      setEnglishText(translation);
+      const translation = isBurmeseSource
+        ? await translateBurmeseToEnglish(sourceText)
+        : await translateEnglishToBurmese(sourceText);
+      
+      if (isBurmeseSource) {
+        setEnglishText(translation);
+      } else {
+        setBurmeseText(translation);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setError(`Translation failed: ${errorMessage}`);
@@ -33,7 +60,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [burmeseText]);
+  }, [burmeseText, englishText, sourceLanguage]);
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 flex flex-col items-center p-4 sm:p-6 lg:p-8 font-sans">
@@ -44,7 +71,7 @@ function App() {
             <LanguagePanel
               title="Burmese"
               value={burmeseText}
-              onChange={(e) => setBurmeseText(e.target.value)}
+              onChange={handleBurmeseChange}
               placeholder="သင်ဘာသာပြန်လိုသောစာသားကိုဤနေရာတွင်ရိုက်ထည့်ပါ..."
               readOnly={isLoading}
             />
@@ -52,8 +79,9 @@ function App() {
               <LanguagePanel
                 title="English"
                 value={englishText}
-                readOnly={true}
-                placeholder="Translation will appear here..."
+                onChange={handleEnglishChange}
+                readOnly={isLoading}
+                placeholder="Enter English text or see translation here..."
               />
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 rounded-xl">

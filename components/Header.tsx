@@ -13,11 +13,11 @@ export const Header: React.FC = () => {
       <div className="flex justify-center items-center gap-4">
         <LanguageIcon />
         <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-          Burmese to English Translator
+          Burmese &lt;&gt; English Translator
         </h1>
       </div>
       <p className="mt-4 text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-        Instantly translate Burmese text into English with high accuracy using the Gemini API. Simple, fast, and reliable.
+        Instantly translate between Burmese and English with high accuracy using the Gemini API. Simple, fast, and reliable.
       </p>
     </header>
   );
