@@ -5,8 +5,18 @@ import { LanguagePanel } from './components/LanguagePanel';
 import { TranslateButton } from './components/TranslateButton';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { HistoryPanel } from './components/HistoryPanel';
+import { XCircleIcon } from './components/icons';
 
 type Language = 'burmese' | 'english';
+
+export interface TranslationHistoryItem {
+  id: string;
+  timestamp: number;
+  sourceText: string;
+  translatedText: string;
+  sourceLang: Language;
+}
 
 // FIX: Cast window to `any` to access vendor-prefixed SpeechRecognition API which may not be in default TS DOM types.
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -38,6 +48,20 @@ function App() {
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordingLanguage, setRecordingLanguage] = useState<Language | null>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [history, setHistory] = useState<TranslationHistoryItem[]>([]);
+
+  // Load history from localStorage on initial render
+  useEffect(() => {
+    try {
+      const storedHistory = localStorage.getItem('translationHistory');
+      if (storedHistory) {
+        setHistory(JSON.parse(storedHistory));
+      }
+    } catch (error) {
+      console.error("Failed to load history from localStorage", error);
+    }
+  }, []);
+
 
   // Load voices for text-to-speech
   useEffect(() => {
@@ -98,6 +122,24 @@ function App() {
       } else {
         setBurmeseText(translation);
       }
+      
+      const newHistoryItem: TranslationHistoryItem = {
+        id: new Date().toISOString() + Math.random(),
+        timestamp: Date.now(),
+        sourceText: sourceText,
+        translatedText: translation,
+        sourceLang: sourceLanguage,
+      };
+
+      setHistory(prevHistory => {
+        if (prevHistory.length > 0 && prevHistory[0].sourceText === newHistoryItem.sourceText) {
+            return prevHistory;
+        }
+        const updatedHistory = [newHistoryItem, ...prevHistory].slice(0, 50); // Keep latest 50
+        localStorage.setItem('translationHistory', JSON.stringify(updatedHistory));
+        return updatedHistory;
+      });
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setError(`Translation failed: ${errorMessage}`);
@@ -199,6 +241,33 @@ function App() {
     setSourceLanguage('english');
   };
 
+  const handleClearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('translationHistory');
+  };
+
+  const handleUseHistoryItem = (item: TranslationHistoryItem) => {
+    if (item.sourceLang === 'burmese') {
+      setBurmeseText(item.sourceText);
+      setEnglishText(item.translatedText);
+      setSourceLanguage('burmese');
+    } else {
+      setEnglishText(item.sourceText);
+      setBurmeseText(item.translatedText);
+      setSourceLanguage('english');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearText = () => {
+    setBurmeseText('');
+    setEnglishText('');
+    setError(null);
+  };
+
+  const canClear = burmeseText.trim().length > 0 || englishText.trim().length > 0;
+
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 flex flex-col items-center p-4 sm:p-6 lg:p-8 font-sans">
       <div className="w-full max-w-5xl mx-auto">
@@ -235,11 +304,27 @@ function App() {
             </div>
           </div>
           <div className="mt-6 flex flex-col items-center">
-            <TranslateButton onClick={() => handleTranslate()} isLoading={isLoading} />
+            <div className="flex items-center gap-4">
+              <TranslateButton onClick={() => handleTranslate()} isLoading={isLoading} />
+              <button
+                onClick={handleClearText}
+                disabled={isLoading || !canClear}
+                className="inline-flex items-center justify-center px-6 py-4 border-2 border-slate-300 dark:border-slate-600 text-base font-medium rounded-full shadow-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-900 transition-all duration-300 transform hover:scale-105"
+                aria-label="Clear text fields"
+              >
+                <XCircleIcon />
+                <span className="ml-2">Clear</span>
+              </button>
+            </div>
             {error && !isSpeechRecognitionSupported && <div className="mt-2" />}
             {error && <ErrorDisplay message={error} />}
           </div>
         </main>
+        <HistoryPanel
+          history={history}
+          onClear={handleClearHistory}
+          onItemClick={handleUseHistoryItem}
+        />
       </div>
     </div>
   );
