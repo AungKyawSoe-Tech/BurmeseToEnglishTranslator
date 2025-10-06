@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const LanguageIcon = () => (
@@ -17,7 +16,7 @@ export const Header: React.FC = () => {
         </h1>
       </div>
       <p className="mt-4 text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-        Instantly translate between Burmese and English with high accuracy using the Gemini API. Simple, fast, and reliable.
+        Instantly translate between Burmese and English. Use your voice or keyboard, and listen to the translation.
       </p>
     </header>
   );

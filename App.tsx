@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { translateBurmeseToEnglish, translateEnglishToBurmese } from './services/geminiService';
 import { Header } from './components/Header';
 import { LanguagePanel } from './components/LanguagePanel';
@@ -9,29 +8,75 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 
 type Language = 'burmese' | 'english';
 
+// FIX: Cast window to `any` to access vendor-prefixed SpeechRecognition API which may not be in default TS DOM types.
+const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+const isSpeechRecognitionSupported = !!SpeechRecognition;
+
+// FIX: Define interfaces for SpeechRecognition events to provide type safety
+// without relying on global types that may not be available in the project's tsconfig.
+interface SpeechRecognitionEvent extends Event {
+  results: {
+    [key: number]: {
+      [key: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+
 function App() {
   const [burmeseText, setBurmeseText] = useState<string>('');
   const [englishText, setEnglishText] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [sourceLanguage, setSourceLanguage] = useState<Language>('burmese');
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordingLanguage, setRecordingLanguage] = useState<Language | null>(null);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
-  const handleBurmeseChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setBurmeseText(e.target.value);
-    setSourceLanguage('burmese');
-  };
+  // Load voices for text-to-speech
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) {
+      return;
+    }
+    const loadVoices = () => {
+      setVoices(window.speechSynthesis.getVoices());
+    };
+    // The 'voiceschanged' event fires when the voice list is ready.
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    // Initial load, which might be empty on some browsers.
+    loadVoices();
 
-  const handleEnglishChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setEnglishText(e.target.value);
-    setSourceLanguage('english');
-  };
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
 
-  const handleTranslate = useCallback(async () => {
+  // FIX: Use a detailed inline type for the recognition object ref.
+  // This avoids using `SpeechRecognition` as a type, which causes a name collision
+  // with the constant defined above, and provides type safety for its usage.
+  const recognitionRef = useRef<{
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    onresult: (event: SpeechRecognitionEvent) => void;
+    onerror: (event: SpeechRecognitionErrorEvent) => void;
+    onend: () => void;
+    start: () => void;
+    stop: () => void;
+  } | null>(null);
+
+  const handleTranslate = useCallback(async (textToTranslate?: string) => {
     const isBurmeseSource = sourceLanguage === 'burmese';
-    const sourceText = isBurmeseSource ? burmeseText : englishText;
+    const sourceText = textToTranslate ?? (isBurmeseSource ? burmeseText : englishText);
 
     if (!sourceText.trim()) {
-      setError(`Please enter some ${isBurmeseSource ? 'Burmese' : 'English'} text to translate.`);
+      setError(`Please enter or speak some ${isBurmeseSource ? 'Burmese' : 'English'} text to translate.`);
       return;
     }
 
@@ -62,11 +107,104 @@ function App() {
     }
   }, [burmeseText, englishText, sourceLanguage]);
 
+  useEffect(() => {
+    if (!isSpeechRecognitionSupported) {
+      setError("Speech recognition is not supported in your browser. Please try Chrome or Safari.");
+      return;
+    }
+    
+    recognitionRef.current = new SpeechRecognition();
+    const recognition = recognitionRef.current;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      if (recordingLanguage === 'burmese') {
+        setBurmeseText(transcript);
+        setSourceLanguage('burmese');
+      } else if (recordingLanguage === 'english') {
+        setEnglishText(transcript);
+        setSourceLanguage('english');
+      }
+    };
+    
+    recognition.onerror = (event) => {
+      setError(`Speech recognition error: ${event.error}`);
+      setIsRecording(false);
+      setRecordingLanguage(null);
+    };
+
+    recognition.onend = () => {
+        setIsRecording(false);
+        setRecordingLanguage(null);
+        // Automatically translate after speech ends
+        setTimeout(() => handleTranslate(), 100);
+    };
+
+    return () => {
+        recognition.stop();
+    }
+  }, [handleTranslate, recordingLanguage]);
+
+  const handleRecord = (lang: Language) => {
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+
+    if (isRecording) {
+      recognition.stop();
+    } else {
+      const langCode = lang === 'burmese' ? 'my-MM' : 'en-US';
+      recognition.lang = langCode;
+      setIsRecording(true);
+      setRecordingLanguage(lang);
+      recognition.start();
+    }
+  };
+
+  const handleSpeak = (text: string, lang: Language) => {
+    if (!text.trim() || !('speechSynthesis' in window)) {
+        return;
+    }
+    // Stop any currently speaking utterance
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    const langCode = lang === 'burmese' ? 'my-MM' : 'en-US';
+    utterance.lang = langCode;
+    
+    // Find a matching voice from the state, which is populated by the useEffect hook
+    let voice = voices.find(v => v.lang === langCode);
+    
+    // If no perfect match, try a language-only match (e.g., 'en-GB' for 'en-US')
+    if (!voice) {
+        const langPrefix = lang === 'burmese' ? 'my' : 'en';
+        voice = voices.find(v => v.lang.startsWith(langPrefix));
+    }
+
+    if (voice) {
+        utterance.voice = voice;
+    }
+    
+    window.speechSynthesis.speak(utterance);
+  }
+
+  const handleBurmeseChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setBurmeseText(e.target.value);
+    setSourceLanguage('burmese');
+  };
+
+  const handleEnglishChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEnglishText(e.target.value);
+    setSourceLanguage('english');
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 flex flex-col items-center p-4 sm:p-6 lg:p-8 font-sans">
       <div className="w-full max-w-5xl mx-auto">
         <Header />
         <main className="mt-8 bg-white dark:bg-slate-800 shadow-2xl rounded-2xl p-6 sm:p-8">
+          {!isSpeechRecognitionSupported && error && <ErrorDisplay message={error}/>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <LanguagePanel
               title="Burmese"
@@ -74,6 +212,9 @@ function App() {
               onChange={handleBurmeseChange}
               placeholder="သင်ဘာသာပြန်လိုသောစာသားကိုဤနေရာတွင်ရိုက်ထည့်ပါ..."
               readOnly={isLoading}
+              onRecordClick={() => handleRecord('burmese')}
+              onSpeakClick={() => handleSpeak(burmeseText, 'burmese')}
+              isRecording={isRecording && recordingLanguage === 'burmese'}
             />
             <div className="relative">
               <LanguagePanel
@@ -82,6 +223,9 @@ function App() {
                 onChange={handleEnglishChange}
                 readOnly={isLoading}
                 placeholder="Enter English text or see translation here..."
+                onRecordClick={() => handleRecord('english')}
+                onSpeakClick={() => handleSpeak(englishText, 'english')}
+                isRecording={isRecording && recordingLanguage === 'english'}
               />
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 rounded-xl">
@@ -91,7 +235,8 @@ function App() {
             </div>
           </div>
           <div className="mt-6 flex flex-col items-center">
-            <TranslateButton onClick={handleTranslate} isLoading={isLoading} />
+            <TranslateButton onClick={() => handleTranslate()} isLoading={isLoading} />
+            {error && !isSpeechRecognitionSupported && <div className="mt-2" />}
             {error && <ErrorDisplay message={error} />}
           </div>
         </main>
