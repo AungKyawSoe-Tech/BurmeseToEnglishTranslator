@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { translateBurmeseToEnglish, translateEnglishToBurmese } from './services/geminiService';
 import { Header } from './components/Header';
@@ -50,6 +51,11 @@ function App() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [history, setHistory] = useState<TranslationHistoryItem[]>([]);
 
+  // Use a ref to hold the latest `handleTranslate` function
+  // to avoid it being a dependency in the speech recognition useEffect,
+  // which causes the recognition instance to be unnecessarily recreated.
+  const handleTranslateRef = useRef<() => void>();
+
   // Load history from localStorage on initial render
   useEffect(() => {
     try {
@@ -94,6 +100,7 @@ function App() {
     start: () => void;
     stop: () => void;
   } | null>(null);
+  const startTimeoutRef = useRef<number | null>(null);
 
   const handleTranslate = useCallback(async (textToTranslate?: string) => {
     const isBurmeseSource = sourceLanguage === 'burmese';
@@ -150,6 +157,10 @@ function App() {
   }, [burmeseText, englishText, sourceLanguage]);
 
   useEffect(() => {
+    handleTranslateRef.current = () => handleTranslate();
+  }, [handleTranslate]);
+
+  useEffect(() => {
     if (!isSpeechRecognitionSupported) {
       setError("Speech recognition is not supported in your browser. Please try Chrome or Safari.");
       return;
@@ -162,10 +173,11 @@ function App() {
     
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      if (recordingLanguage === 'burmese') {
+      // The recognition object itself knows the language it was started with.
+      if (recognition.lang === 'my-MM') {
         setBurmeseText(transcript);
         setSourceLanguage('burmese');
-      } else if (recordingLanguage === 'english') {
+      } else if (recognition.lang === 'en-US') {
         setEnglishText(transcript);
         setSourceLanguage('english');
       }
@@ -180,27 +192,56 @@ function App() {
     recognition.onend = () => {
         setIsRecording(false);
         setRecordingLanguage(null);
-        // Automatically translate after speech ends
-        setTimeout(() => handleTranslate(), 100);
+        // Do not automatically translate. Let the user confirm the text and click the button.
     };
 
     return () => {
         recognition.stop();
+        if (startTimeoutRef.current) {
+            clearTimeout(startTimeoutRef.current);
+        }
     }
-  }, [handleTranslate, recordingLanguage]);
+  }, []); // This effect should only run once to initialize the recognition object.
 
   const handleRecord = (lang: Language) => {
     const recognition = recognitionRef.current;
     if (!recognition) return;
 
     if (isRecording) {
-      recognition.stop();
+      if (startTimeoutRef.current) {
+        // If the start timer is pending, it means we clicked "stop"
+        // before the recording actually started.
+        clearTimeout(startTimeoutRef.current);
+        startTimeoutRef.current = null;
+        // Manually reset state because `onend` will not fire.
+        setIsRecording(false);
+        setRecordingLanguage(null);
+      } else {
+        // Recording is active, so stop it. `onend` will handle state reset.
+        recognition.stop();
+      }
     } else {
       const langCode = lang === 'burmese' ? 'my-MM' : 'en-US';
       recognition.lang = langCode;
+      // Set recording state immediately for responsive UI
       setIsRecording(true);
       setRecordingLanguage(lang);
-      recognition.start();
+      
+      // Start recognition after a short delay to avoid capturing click sounds.
+      startTimeoutRef.current = window.setTimeout(() => {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("Speech recognition could not be started:", e);
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          setError(`Speech recognition failed to start: ${errorMessage}`);
+          // Reset state if start fails
+          setIsRecording(false);
+          setRecordingLanguage(null);
+        } finally {
+          startTimeoutRef.current = null;
+        }
+      }, 500);
     }
   };
 
@@ -212,18 +253,27 @@ function App() {
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    const langCode = lang === 'burmese' ? 'my-MM' : 'en-US';
-    utterance.lang = langCode;
-    
-    // Find a matching voice from the state, which is populated by the useEffect hook
-    let voice = voices.find(v => v.lang === langCode);
-    
-    // If no perfect match, try a language-only match (e.g., 'en-GB' for 'en-US')
-    if (!voice) {
-        const langPrefix = lang === 'burmese' ? 'my' : 'en';
-        voice = voices.find(v => v.lang.startsWith(langPrefix));
-    }
+    let voice: SpeechSynthesisVoice | undefined;
 
+    if (lang === 'english') {
+      utterance.lang = 'en-AU'; // Set desired language for utterance
+      voice = voices.find(v => v.lang === 'en-AU'); // Prioritize Australian
+      if (!voice) {
+        voice = voices.find(v => v.lang.startsWith('en')); // Fallback to any English
+      }
+    } else { // burmese
+      utterance.lang = 'my-MM';
+      voice = voices.find(v => v.lang === 'my-MM');
+      if (!voice) {
+        voice = voices.find(v => v.lang.startsWith('my'));
+      }
+      
+      // Keep the specific warning for Burmese, as it's less common.
+      if (!voice) {
+        setError("A Burmese text-to-speech voice may not be available on your system. Playback might not work as expected.");
+      }
+    }
+    
     if (voice) {
         utterance.voice = voice;
     }
@@ -284,6 +334,7 @@ function App() {
               onRecordClick={() => handleRecord('burmese')}
               onSpeakClick={() => handleSpeak(burmeseText, 'burmese')}
               isRecording={isRecording && recordingLanguage === 'burmese'}
+              isRecordDisabled={isRecording && recordingLanguage === 'english'}
             />
             <div className="relative">
               <LanguagePanel
@@ -295,6 +346,7 @@ function App() {
                 onRecordClick={() => handleRecord('english')}
                 onSpeakClick={() => handleSpeak(englishText, 'english')}
                 isRecording={isRecording && recordingLanguage === 'english'}
+                isRecordDisabled={isRecording && recordingLanguage === 'burmese'}
               />
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 rounded-xl">

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { MicrophoneIcon, SpeakerIcon, StopIcon } from './icons';
 
@@ -10,6 +11,7 @@ interface LanguagePanelProps {
   isRecording?: boolean;
   onRecordClick?: () => void;
   onSpeakClick?: () => void;
+  isRecordDisabled?: boolean;
 }
 
 export const LanguagePanel: React.FC<LanguagePanelProps> = ({
@@ -21,6 +23,7 @@ export const LanguagePanel: React.FC<LanguagePanelProps> = ({
   isRecording = false,
   onRecordClick,
   onSpeakClick,
+  isRecordDisabled = false,
 }) => {
   return (
     <div className="flex flex-col h-full">
@@ -30,7 +33,8 @@ export const LanguagePanel: React.FC<LanguagePanelProps> = ({
             {onRecordClick && (
                 <button 
                     onClick={onRecordClick} 
-                    className={`p-2 rounded-full transition-colors duration-200 ${isRecording ? 'bg-red-500/20 text-red-500' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                    disabled={isRecordDisabled}
+                    className={`p-2 rounded-full transition-colors duration-200 ${isRecording ? 'bg-red-500/20 text-red-500' : 'hover:bg-slate-200 dark:hover:bg-slate-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
                     aria-label={isRecording ? `Stop recording ${title}` : `Record ${title}`}
                     title={isRecording ? `Stop recording ${title}` : `Record ${title}`}
                 >
