@@ -39,6 +39,7 @@ interface SpeechRecognitionErrorEvent extends Event {
   error: string;
 }
 
+const MAX_CHARS = 1000;
 
 function App() {
   const [burmeseText, setBurmeseText] = useState<string>('');
@@ -50,6 +51,9 @@ function App() {
   const [recordingLanguage, setRecordingLanguage] = useState<Language | null>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [history, setHistory] = useState<TranslationHistoryItem[]>([]);
+  const [burmeseError, setBurmeseError] = useState<string | null>(null);
+  const [englishError, setEnglishError] = useState<string | null>(null);
+
 
   // Use a ref to hold the latest `handleTranslate` function
   // to avoid it being a dependency in the speech recognition useEffect,
@@ -282,12 +286,26 @@ function App() {
   }
 
   const handleBurmeseChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setBurmeseText(e.target.value);
+    const value = e.target.value;
+    if (value.length > MAX_CHARS) {
+      setBurmeseError(`Character limit of ${MAX_CHARS} exceeded.`);
+      // Do not update state if over limit to prevent typing more.
+      // Or slice it: setBurmeseText(value.slice(0, MAX_CHARS));
+    } else {
+      setBurmeseError(null);
+      setBurmeseText(value);
+    }
     setSourceLanguage('burmese');
   };
 
   const handleEnglishChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setEnglishText(e.target.value);
+    const value = e.target.value;
+    if (value.length > MAX_CHARS) {
+      setEnglishError(`Character limit of ${MAX_CHARS} exceeded.`);
+    } else {
+      setEnglishError(null);
+      setEnglishText(value);
+    }
     setSourceLanguage('english');
   };
 
@@ -313,6 +331,8 @@ function App() {
     setBurmeseText('');
     setEnglishText('');
     setError(null);
+    setBurmeseError(null);
+    setEnglishError(null);
   };
 
   const canClear = burmeseText.trim().length > 0 || englishText.trim().length > 0;
@@ -335,6 +355,8 @@ function App() {
               onSpeakClick={() => handleSpeak(burmeseText, 'burmese')}
               isRecording={isRecording && recordingLanguage === 'burmese'}
               isRecordDisabled={isRecording && recordingLanguage === 'english'}
+              error={burmeseError}
+              maxLength={MAX_CHARS}
             />
             <div className="relative">
               <LanguagePanel
@@ -347,6 +369,8 @@ function App() {
                 onSpeakClick={() => handleSpeak(englishText, 'english')}
                 isRecording={isRecording && recordingLanguage === 'english'}
                 isRecordDisabled={isRecording && recordingLanguage === 'burmese'}
+                error={englishError}
+                maxLength={MAX_CHARS}
               />
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 rounded-xl">
