@@ -1,6 +1,6 @@
 {
-  "name": "Copy of Burmese to English Translator",
-  "description": "A modern and intuitive web application to translate text from Burmese to English using the power of the Gemini API.",
+  "name": "Burmese <> English Translator Plug-in",
+  "description": "An embeddable web plug-in to translate text between Burmese and English using the power of the Gemini API.",
   "requestFramePermissions": [
     "microphone"
   ]

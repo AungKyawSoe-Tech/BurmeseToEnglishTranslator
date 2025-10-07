@@ -1,4 +1,4 @@
-const CACHE_NAME = 'burmese-translator-cache-v1';
+const CACHE_NAME = 'burmese-translator-cache-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -6,7 +6,6 @@ const urlsToCache = [
   '/App.tsx',
   '/services/geminiService.ts',
   '/components/ErrorDisplay.tsx',
-  '/components/Header.tsx',
   '/components/HistoryItem.tsx',
   '/components/HistoryPanel.tsx',
   '/components/icons.tsx',

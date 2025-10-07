@@ -1,49 +1,72 @@
+# Burmese <> English Translator Plug-in
 
-# Burmese <> English Translator
-
-A modern and intuitive web application to translate text from Burmese to English using the power of the Gemini API. This application is a Progressive Web App (PWA), which means you can install it on your phone for a native app-like experience.
+A modern and intuitive web plug-in to translate text from Burmese to English using the power of the Gemini API. This plug-in can be easily embedded into any website to provide on-page translation capabilities.
 
 ## Features
 
+*   **Embeddable Widget:** Add a full-featured translator to any website with a single script tag.
 *   **Bidirectional Translation:** Instantly translate text between Burmese and English.
-*   **Voice Input:** Use your microphone to speak in either language for translation.
+*   **Voice Input:** Use the microphone to speak in either language for translation.
 *   **Text-to-Speech:** Listen to the translated text spoken aloud.
-*   **Translation History:** Your recent translations are saved for quick access.
-*   **Responsive Design:** Works beautifully on desktop, tablets, and mobile phones.
-*   **PWA Ready:** "Install" the app on your Android or iPhone for easy access from your home screen.
-*   **Ready for the Play Store:** Package the app for Android and the Google Play Store.
+*   **Translation History:** Recent translations are saved locally for quick access.
+*   **Isolated Styling:** Uses a Shadow DOM to prevent any style conflicts with the host website.
+*   **PWA Ready:** The standalone version can be installed on mobile devices.
 
 ---
 
 ## Getting Started: Setting Up Your API Key
 
-To run this application, you must provide your Google Gemini API key as an environment variable named `API_KEY`.
+This application requires a Google Gemini API key to function. The key must be provided as an environment variable named `API_KEY`.
+
+### How It Works
+
+The application code securely accesses the API key using `process.env.API_KEY`. You do not need to modify any source code files to add your key.
 
 ### For Local Development & Testing
 
-Your local development environment must be configured to provide the `API_KEY` environment variable. If you don't have one, get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+Your local development environment must be configured to provide the `API_KEY` environment variable. If the key is not provided, the plug-in will still load, but translation attempts will show an error message inside the widget.
 
 ### For Production Deployment (Vercel)
 
-When you deploy your app to Vercel, you will use its Environment Variables system. This is the secure, standard way to handle secrets in production.
-
-1.  Go to your Vercel project's dashboard.
-2.  Navigate to the "Settings" tab and then the "Environment Variables" section.
-3.  Add a new variable:
-    *   **Name:** `API_KEY`
-    *   **Value:** Paste your Google Gemini API Key here.
-4.  Save the variable and redeploy your application for the changes to take effect.
+When you deploy to Vercel, you must set the `API_KEY` as a secret environment variable in your project settings. The deployment guide below has detailed instructions for this.
 
 ---
 
-## How to Deploy (So your friends can try it!)
+## How to Embed the Plug-in on Your Website
 
-To share this application, you need to host it online. We recommend using Vercel, a free and easy-to-use hosting service for web projects.
+Once you have deployed the plug-in (see next section), you can add it to any website by adding the following code to your HTML file.
+
+1.  Add this `<script type="importmap">` tag to the `<head>` of your HTML file. This tells the browser where to find the necessary libraries.
+
+    ```html
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.22.0",
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "react": "https://aistudiocdn.com/react@^19.2.0"
+      }
+    }
+    </script>
+    ```
+
+2.  Add this `<script>` tag just before the closing `</body>` tag. **Make sure to replace `your-project-name.vercel.app` with the actual URL of your deployed plug-in.**
+
+    ```html
+    <script type="module" src="https://your-project-name.vercel.app/index.tsx"></script>
+    ```
+
+That's it! The plug-in will automatically appear as a floating button on the page.
+
+## How to Deploy (So you can use it on your sites!)
+
+To use this plug-in, you need to host its files online. We recommend using Vercel, a free and easy-to-use hosting service.
 
 ### Prerequisites
 
-1.  **GitHub Account:** You'll need a free GitHub account to store your code.
-2.  **Vercel Account:** Sign up for a free Vercel account using your GitHub account.
+1.  **GitHub Account:** You'll need a free GitHub account.
+2.  **Vercel Account:** Sign up for a free Vercel account.
 
 ### Step-by-Step Deployment Guide
 
@@ -55,37 +78,14 @@ To share this application, you need to host it online. We recommend using Vercel
 **Step 2: Deploy with Vercel**
 
 1.  Go to your [Vercel Dashboard](https://vercel.com/dashboard) and click "Add New... -> Project".
-2.  Under "Import Git Repository", select your newly created GitHub repository and click "Import".
-3.  Vercel will automatically detect that this is a static web project. You don't need to change any build settings.
-4.  **Crucial Step:** Before deploying, you must add your Gemini API Key as an environment variable, as described in the section above.
+2.  Import your newly created GitHub repository.
+3.  Vercel will automatically detect the project settings.
+4.  **Crucial Step:** Before deploying, you must add your Gemini API Key.
+    *   Expand the "Environment Variables" section.
+    *   Add a new variable:
+        *   **Name:** `API_KEY`
+        *   **Value:** Paste your Google Gemini API Key here.
+    *   Click "Add".
 5.  Click the "Deploy" button.
 
-That's it! Vercel will build and deploy your site, giving you a public URL (e.g., `your-project-name.vercel.app`) that you can share with your friends.
-
-## How to Use on Your Phone (as an App)
-
-This translator is a Progressive Web App (PWA), allowing you to add it to your phone's home screen.
-
-### On Android (using Chrome)
-
-1.  Open the Vercel URL of your deployed app in the Chrome browser.
-2.  Tap the three-dot menu icon in the top-right corner.
-3.  Tap **"Install app"** or **"Add to Home Screen"**.
-4.  Follow the on-screen prompts. The app icon will now appear on your home screen.
-
-### On iPhone (using Safari)
-
-1.  Open the Vercel URL of your deployed app in the Safari browser.
-2.  Tap the "Share" icon (a square with an arrow pointing up) at the bottom of the screen.
-3.  Scroll down the list of options and tap **"Add to Home Screen"**.
-4.  Confirm the name and tap "Add". The app icon will now appear on your home screen.
-
-## Publishing to Google Play Store
-
-To publish your app to the Google Play Store for wider distribution on Android, follow the detailed instructions in the deployment guide:
-
-**➡️ [Android Deployment Guide](./ANDROID_DEPLOYMENT.md)**
-
-## Customizing Icons
-
-This project includes placeholder SVG icons for the PWA. You can replace `icon-192.svg` and `icon-512.svg` in the `/icons` directory with your own custom icons (PNG format is recommended for best compatibility). If you use PNGs, make sure to update `manifest.json` to reflect the new file names and types.
+Vercel will deploy your plug-in and give you a public URL (e.g., `your-project-name.vercel.app`). Use this URL in the embed script mentioned above.

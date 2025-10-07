@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const iconClass = "h-5 w-5";
@@ -17,14 +16,7 @@ export const StopIcon: React.FC = () => (
 
 export const SpeakerIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className={iconClass} viewBox="0 0 20 20" fill="currentColor">
-      <path d="M11.25 4.06c0-1.11-1.34-.67-2.13-.25l-3.75 3.75H3.75c-.95 0-1.93.55-2.21 1.58A8.13 8.13 0 001.25 10c0 .75.1 1.47.29 2.16.28 1.03 1.26 1.59 2.21 1.59h1.62l3.75 3.75c.79.42 2.13-.14 2.13-1.25V4.06zM15.48 4.25a.625.625 0 01.88 0c3.17 3.17 3.17 8.31 0 11.48a.625.625 0 11-.88-.88 7.08 7.08 0 000-9.72a.625.625 0 010-.88z" />
-      <path d="M13.27 6.46a.625.625 0 01.88 0 5 5 0 010 7.07.625.625 0 01-.88-.88 3.75 3.75 0 000-5.3.625.625 0 010-.88z" />
-    </svg>
-);
-
-export const SwapIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
     </svg>
 );
 
@@ -49,5 +41,23 @@ export const ReuseIcon: React.FC = () => (
 export const XCircleIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
+export const SwapIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={iconClass} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+    </svg>
+);
+
+export const TranslateIcon: React.FC = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h12M9 3v2m4 13l4-16M11 11h10M13 13L11 21M17 11h2m-1 8h-6a2 2 0 01-2-2v-4a2 2 0 012-2h2.5" />
+  </svg>
+);
+
+export const XIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
 );

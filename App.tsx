@@ -1,12 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { translateBurmeseToEnglish, translateEnglishToBurmese, GeminiError } from './services/geminiService';
-import { Header } from './components/Header';
+import { translateBurmeseToEnglish, translateEnglishToBurmese } from './services/geminiService';
 import { LanguagePanel } from './components/LanguagePanel';
 import { TranslateButton } from './components/TranslateButton';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { HistoryPanel } from './components/HistoryPanel';
-import { XCircleIcon, SwapIcon } from './components/icons';
+import { XCircleIcon, SwapIcon, TranslateIcon, XIcon } from './components/icons';
 
 type Language = 'burmese' | 'english';
 
@@ -18,12 +17,9 @@ export interface TranslationHistoryItem {
   sourceLang: Language;
 }
 
-// FIX: Cast window to `any` to access vendor-prefixed SpeechRecognition API which may not be in default TS DOM types.
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 const isSpeechRecognitionSupported = !!SpeechRecognition;
 
-// FIX: Define interfaces for SpeechRecognition events to provide type safety
-// without relying on global types that may not be available in the project's tsconfig.
 interface SpeechRecognitionEvent extends Event {
   results: {
     [key: number]: {
@@ -38,8 +34,6 @@ interface SpeechRecognitionErrorEvent extends Event {
   error: string;
 }
 
-const MAX_CHARS = 1000;
-
 function App() {
   const [burmeseText, setBurmeseText] = useState<string>('');
   const [englishText, setEnglishText] = useState<string>('');
@@ -50,16 +44,11 @@ function App() {
   const [recordingLanguage, setRecordingLanguage] = useState<Language | null>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [history, setHistory] = useState<TranslationHistoryItem[]>([]);
-  const [burmeseError, setBurmeseError] = useState<string | null>(null);
-  const [englishError, setEnglishError] = useState<string | null>(null);
+  const [isWidgetOpen, setIsWidgetOpen] = useState<boolean>(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  
+  // FIX: Removed unused `handleTranslateRef` which caused a syntax error.
 
-
-  // Use a ref to hold the latest `handleTranslate` function
-  // to avoid it being a dependency in the speech recognition useEffect,
-  // which causes the recognition instance to be unnecessarily recreated.
-  const handleTranslateRef = useRef<() => void>();
-
-  // Load history from localStorage on initial render
   useEffect(() => {
     try {
       const storedHistory = localStorage.getItem('translationHistory');
@@ -71,28 +60,14 @@ function App() {
     }
   }, []);
 
-
-  // Load voices for text-to-speech
   useEffect(() => {
-    if (!('speechSynthesis' in window)) {
-      return;
-    }
-    const loadVoices = () => {
-      setVoices(window.speechSynthesis.getVoices());
-    };
-    // The 'voiceschanged' event fires when the voice list is ready.
+    if (!('speechSynthesis' in window)) return;
+    const loadVoices = () => setVoices(window.speechSynthesis.getVoices());
     window.speechSynthesis.onvoiceschanged = loadVoices;
-    // Initial load, which might be empty on some browsers.
     loadVoices();
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, []);
 
-  // FIX: Use a detailed inline type for the recognition object ref.
-  // This avoids using `SpeechRecognition` as a type, which causes a name collision
-  // with the constant defined above, and provides type safety for its usage.
   const recognitionRef = useRef<{
     continuous: boolean;
     interimResults: boolean;
@@ -116,22 +91,14 @@ function App() {
 
     setIsLoading(true);
     setError(null);
-    if (isBurmeseSource) {
-      setEnglishText('');
-    } else {
-      setBurmeseText('');
-    }
+    if (isBurmeseSource) setEnglishText(''); else setBurmeseText('');
 
     try {
       const translation = isBurmeseSource
         ? await translateBurmeseToEnglish(sourceText)
         : await translateEnglishToBurmese(sourceText);
       
-      if (isBurmeseSource) {
-        setEnglishText(translation);
-      } else {
-        setBurmeseText(translation);
-      }
+      if (isBurmeseSource) setEnglishText(translation); else setBurmeseText(translation);
       
       const newHistoryItem: TranslationHistoryItem = {
         id: new Date().toISOString() + Math.random(),
@@ -145,28 +112,19 @@ function App() {
         if (prevHistory.length > 0 && prevHistory[0].sourceText === newHistoryItem.sourceText) {
             return prevHistory;
         }
-        const updatedHistory = [newHistoryItem, ...prevHistory].slice(0, 50); // Keep latest 50
+        const updatedHistory = [newHistoryItem, ...prevHistory].slice(0, 50);
         localStorage.setItem('translationHistory', JSON.stringify(updatedHistory));
         return updatedHistory;
       });
 
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+      setError(`Translation failed: ${errorMessage}`);
       console.error(err);
-      if (err instanceof GeminiError) {
-        setError(err.message);
-      } else if (err instanceof Error) {
-        setError(`An unexpected error occurred: ${err.message}`);
-      } else {
-        setError('An unknown error occurred during translation.');
-      }
     } finally {
       setIsLoading(false);
     }
   }, [burmeseText, englishText, sourceLanguage]);
-
-  useEffect(() => {
-    handleTranslateRef.current = () => handleTranslate();
-  }, [handleTranslate]);
 
   useEffect(() => {
     if (!isSpeechRecognitionSupported) {
@@ -181,7 +139,6 @@ function App() {
     
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      // The recognition object itself knows the language it was started with.
       if (recognition.lang === 'my-MM') {
         setBurmeseText(transcript);
         setSourceLanguage('burmese');
@@ -198,18 +155,15 @@ function App() {
     };
 
     recognition.onend = () => {
-        setIsRecording(false);
-        setRecordingLanguage(null);
-        // Do not automatically translate. Let the user confirm the text and click the button.
+      setIsRecording(false);
+      setRecordingLanguage(null);
     };
 
     return () => {
-        recognition.stop();
-        if (startTimeoutRef.current) {
-            clearTimeout(startTimeoutRef.current);
-        }
+      recognition.stop();
+      if (startTimeoutRef.current) clearTimeout(startTimeoutRef.current);
     }
-  }, []); // This effect should only run once to initialize the recognition object.
+  }, []);
 
   const handleRecord = (lang: Language) => {
     const recognition = recognitionRef.current;
@@ -217,33 +171,25 @@ function App() {
 
     if (isRecording) {
       if (startTimeoutRef.current) {
-        // If the start timer is pending, it means we clicked "stop"
-        // before the recording actually started.
         clearTimeout(startTimeoutRef.current);
         startTimeoutRef.current = null;
-        // Manually reset state because `onend` will not fire.
         setIsRecording(false);
         setRecordingLanguage(null);
       } else {
-        // Recording is active, so stop it. `onend` will handle state reset.
         recognition.stop();
       }
     } else {
       const langCode = lang === 'burmese' ? 'my-MM' : 'en-US';
       recognition.lang = langCode;
-      // Set recording state immediately for responsive UI
       setIsRecording(true);
       setRecordingLanguage(lang);
       
-      // Start recognition after a short delay to avoid capturing click sounds.
       startTimeoutRef.current = window.setTimeout(() => {
         try {
           recognition.start();
         } catch (e) {
           console.error("Speech recognition could not be started:", e);
-          const errorMessage = e instanceof Error ? e.message : String(e);
-          setError(`Speech recognition failed to start: ${errorMessage}`);
-          // Reset state if start fails
+          setError(`Speech recognition failed to start: ${e instanceof Error ? e.message : String(e)}`);
           setIsRecording(false);
           setRecordingLanguage(null);
         } finally {
@@ -254,74 +200,24 @@ function App() {
   };
 
   const handleSpeak = (text: string, lang: Language) => {
-    if (!text.trim() || !('speechSynthesis' in window)) {
-        return;
-    }
-    // Stop any currently speaking utterance
+    if (!text.trim() || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
     let voice: SpeechSynthesisVoice | undefined;
 
     if (lang === 'english') {
-      utterance.lang = 'en-AU'; // Set desired language for utterance
-      voice = voices.find(v => v.lang === 'en-AU'); // Prioritize Australian
-      if (!voice) {
-        voice = voices.find(v => v.lang.startsWith('en')); // Fallback to any English
-      }
-    } else { // burmese
+      utterance.lang = 'en-AU';
+      voice = voices.find(v => v.lang === 'en-AU') || voices.find(v => v.lang.startsWith('en'));
+    } else {
       utterance.lang = 'my-MM';
-      voice = voices.find(v => v.lang === 'my-MM');
-      if (!voice) {
-        voice = voices.find(v => v.lang.startsWith('my'));
-      }
-      
-      // Keep the specific warning for Burmese, as it's less common.
-      if (!voice) {
-        setError("A Burmese text-to-speech voice may not be available on your system. Playback might not work as expected.");
-      }
+      voice = voices.find(v => v.lang === 'my-MM') || voices.find(v => v.lang.startsWith('my'));
+      if (!voice) setError("A Burmese text-to-speech voice may not be available on your system.");
     }
     
-    if (voice) {
-        utterance.voice = voice;
-    }
-    
+    if (voice) utterance.voice = voice;
     window.speechSynthesis.speak(utterance);
   }
-
-  const handleBurmeseChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    if (value.length > MAX_CHARS) {
-      setBurmeseError(`Character limit of ${MAX_CHARS} exceeded.`);
-      // Do not update state if over limit to prevent typing more.
-      // Or slice it: setBurmeseText(value.slice(0, MAX_CHARS));
-    } else {
-      setBurmeseError(null);
-      setBurmeseText(value);
-    }
-    setSourceLanguage('burmese');
-  };
-
-  const handleEnglishChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    if (value.length > MAX_CHARS) {
-      setEnglishError(`Character limit of ${MAX_CHARS} exceeded.`);
-    } else {
-      setEnglishError(null);
-      setEnglishText(value);
-    }
-    setSourceLanguage('english');
-  };
-
-  const handleSwapLanguages = () => {
-    if (isLoading) return;
-
-    setBurmeseText(englishText);
-    setEnglishText(burmeseText);
-    setSourceLanguage(prev => prev === 'burmese' ? 'english' : 'burmese');
-    setBurmeseError(null);
-    setEnglishError(null);
-  };
 
   const handleClearHistory = () => {
     setHistory([]);
@@ -338,97 +234,119 @@ function App() {
       setBurmeseText(item.translatedText);
       setSourceLanguage('english');
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsHistoryOpen(false);
   };
 
   const handleClearText = () => {
     setBurmeseText('');
     setEnglishText('');
     setError(null);
-    setBurmeseError(null);
-    setEnglishError(null);
+  };
+  
+  const handleSwapLanguages = () => {
+    setSourceLanguage(prev => prev === 'burmese' ? 'english' : 'burmese');
+    setBurmeseText(englishText);
+    setEnglishText(burmeseText);
   };
 
   const canClear = burmeseText.trim().length > 0 || englishText.trim().length > 0;
+  
+  const sourceProps = sourceLanguage === 'burmese' ? {
+      title: "Burmese", value: burmeseText, onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => setBurmeseText(e.target.value),
+      placeholder: "သင်ဘာသာပြန်လိုသောစာသားကိုဤနေရာတွင်ရိုက်ထည့်ပါ...", onRecordClick: () => handleRecord('burmese'),
+      onSpeakClick: () => handleSpeak(burmeseText, 'burmese'), isRecording: isRecording && recordingLanguage === 'burmese', isRecordDisabled: isRecording && recordingLanguage === 'english'
+  } : {
+      title: "English", value: englishText, onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => setEnglishText(e.target.value),
+      placeholder: "Enter English text or see translation here...", onRecordClick: () => handleRecord('english'),
+      onSpeakClick: () => handleSpeak(englishText, 'english'), isRecording: isRecording && recordingLanguage === 'english', isRecordDisabled: isRecording && recordingLanguage === 'burmese'
+  };
+
+  const targetProps = sourceLanguage === 'burmese' ? {
+      title: "English", value: englishText,
+      placeholder: "Translation will appear here...", onRecordClick: () => handleRecord('english'),
+      onSpeakClick: () => handleSpeak(englishText, 'english'), isRecording: isRecording && recordingLanguage === 'english', isRecordDisabled: isRecording && recordingLanguage === 'burmese'
+  } : {
+      title: "Burmese", value: burmeseText,
+      placeholder: "ဘာသာပြန်ချက်သည်ဤနေရာတွင်ပေါ်လာလိမ့်မည်...", onRecordClick: () => handleRecord('burmese'),
+      onSpeakClick: () => handleSpeak(burmeseText, 'burmese'), isRecording: isRecording && recordingLanguage === 'burmese', isRecordDisabled: isRecording && recordingLanguage === 'english'
+  };
 
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 flex flex-col items-center p-4 sm:p-6 lg:p-8 font-sans">
-      <div className="w-full max-w-5xl mx-auto">
-        <Header />
-        <main className="mt-8 bg-white dark:bg-slate-800 shadow-2xl rounded-2xl p-6 sm:p-8">
-          {!isSpeechRecognitionSupported && error && <ErrorDisplay message={error}/>}
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-center">
-            <LanguagePanel
-              title="Burmese"
-              value={burmeseText}
-              onChange={handleBurmeseChange}
-              placeholder="သင်ဘာသာပြန်လိုသောစာသားကိုဤနေရာတွင်ရိုက်ထည့်ပါ..."
-              readOnly={isLoading}
-              onRecordClick={() => handleRecord('burmese')}
-              onSpeakClick={() => handleSpeak(burmeseText, 'burmese')}
-              isRecording={isRecording && recordingLanguage === 'burmese'}
-              isRecordDisabled={isRecording && recordingLanguage === 'english'}
-              error={burmeseError}
-              maxLength={MAX_CHARS}
-            />
+    <div className="text-slate-800 dark:text-slate-200 font-sans">
+      <div className={`fixed bottom-0 right-0 sm:bottom-8 sm:right-8 z-[9999] transition-all duration-300 ${isWidgetOpen ? 'w-full h-full sm:w-[26rem] sm:max-w-[calc(100vw-4rem)] sm:h-[85vh] sm:max-h-[42rem]' : 'w-16 h-16'}`}>
+        
+        {/* Main Translator Panel */}
+        <div className={`w-full h-full bg-white dark:bg-slate-900 sm:rounded-2xl shadow-2xl flex flex-col transition-opacity duration-300 ${isWidgetOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <header className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+            <h2 className="font-bold text-lg text-slate-900 dark:text-white">Translator</h2>
+            <button onClick={() => setIsWidgetOpen(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700" aria-label="Close translator">
+              <XIcon />
+            </button>
+          </header>
 
-            <div className="flex items-center justify-center my-2 md:my-0">
-                <button
-                    onClick={handleSwapLanguages}
-                    disabled={isLoading}
-                    className="p-2 rounded-full border-2 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-cyan-500 dark:hover:border-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-900 transition-all duration-300 transform hover:scale-110 rotate-90 md:rotate-0"
-                    aria-label="Swap languages"
-                    title="Swap languages"
-                >
+          <main className="flex-grow p-4 space-y-4 overflow-y-auto">
+            <LanguagePanel {...sourceProps} readOnly={isLoading} />
+            
+            <div className="flex justify-center my-2">
+                <button onClick={handleSwapLanguages} className="p-2 rounded-full border-2 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-transform duration-300 hover:rotate-180" aria-label="Swap languages">
                     <SwapIcon />
                 </button>
             </div>
 
             <div className="relative">
-              <LanguagePanel
-                title="English"
-                value={englishText}
-                onChange={handleEnglishChange}
-                readOnly={isLoading}
-                placeholder="Enter English text or see translation here..."
-                onRecordClick={() => handleRecord('english')}
-                onSpeakClick={() => handleSpeak(englishText, 'english')}
-                isRecording={isRecording && recordingLanguage === 'english'}
-                isRecordDisabled={isRecording && recordingLanguage === 'burmese'}
-                error={englishError}
-                maxLength={MAX_CHARS}
-              />
+              <LanguagePanel {...targetProps} onChange={() => {}} readOnly={true} />
               {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 rounded-xl">
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 sm:rounded-xl">
                   <LoadingSpinner />
-                </div>
+                  </div>
               )}
             </div>
-          </div>
-          <div className="mt-6 flex flex-col items-center">
-            <div className="flex items-center gap-4">
+
+            <div className="flex items-center justify-center gap-4 pt-4">
               <TranslateButton onClick={() => handleTranslate()} isLoading={isLoading} />
-              <button
-                onClick={handleClearText}
-                disabled={isLoading || !canClear}
-                className="inline-flex items-center justify-center px-6 py-4 border-2 border-slate-300 dark:border-slate-600 text-base font-medium rounded-full shadow-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-900 transition-all duration-300 transform hover:scale-105"
-                aria-label="Clear text fields"
-              >
-                <XCircleIcon />
-                <span className="ml-2">Clear</span>
-              </button>
+              {canClear && (
+                <button onClick={handleClearText} disabled={isLoading} className="p-3 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50" aria-label="Clear text">
+                    <XCircleIcon />
+                </button>
+              )}
             </div>
-            {error && !isSpeechRecognitionSupported && <div className="mt-2" />}
             {error && <ErrorDisplay message={error} />}
-          </div>
-        </main>
-        <HistoryPanel
-          history={history}
-          onClear={handleClearHistory}
-          onItemClick={handleUseHistoryItem}
-        />
+          </main>
+
+          <footer className="p-4 border-t border-slate-200 dark:border-slate-700 flex-shrink-0 text-center">
+            <button onClick={() => setIsHistoryOpen(true)} className="text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+              Translation History
+            </button>
+          </footer>
+        </div>
+
+        {/* Floating Action Button */}
+        {!isWidgetOpen && (
+          <button
+            onClick={() => setIsWidgetOpen(true)}
+            className="w-16 h-16 bg-cyan-600 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transform transition-transform hover:scale-110"
+            aria-label="Open translator"
+          >
+            <TranslateIcon />
+          </button>
+        )}
       </div>
+
+      {/* History Modal */}
+      {isHistoryOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center" onClick={() => setIsHistoryOpen(false)}>
+          <div className="w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
+            <HistoryPanel
+              history={history}
+              onClear={handleClearHistory}
+              onItemClick={handleUseHistoryItem}
+              isModal={true}
+              onClose={() => setIsHistoryOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

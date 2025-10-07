@@ -1,24 +1,21 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Custom error class for more specific API error handling
-export class GeminiError extends Error {
-  constructor(message: string, public cause?: any) {
-    super(message);
-    this.name = 'GeminiError';
-  }
+const GEMINI_API_KEY = process.env.API_KEY;
+
+// Lazily initialize the AI instance to prevent app crash on load if API key is missing.
+// The error will be thrown when a translation is attempted, which can be handled by the UI.
+let ai: GoogleGenAI | null = null;
+if (GEMINI_API_KEY) {
+    ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 }
 
-// The API key must be set as an environment variable `API_KEY`.
-// This is handled automatically by the hosting environment (e.g., Vercel) or local setup.
-if (!process.env.API_KEY) {
-    // This error will be caught during development or at build time if the key is missing.
-    throw new Error("API_KEY environment variable not set. Please configure it in your deployment environment.");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const model = 'gemini-2.5-flash';
 
 async function callGemini(prompt: string): Promise<string> {
+    if (!ai) {
+        throw new Error("API_KEY not found. It must be provided as an environment variable.");
+    }
+
     try {
         const response = await ai.models.generateContent({
             model: model,
@@ -30,33 +27,10 @@ async function callGemini(prompt: string): Promise<string> {
             }
         });
 
-        const responseText = response.text;
-        if (!responseText) {
-            const blockReason = response.candidates?.[0]?.finishReason;
-            if (blockReason && blockReason !== 'STOP') {
-                throw new GeminiError(`The response was blocked for safety reasons (${blockReason}). Please modify your input.`);
-            }
-            throw new GeminiError("The translation service returned an empty response. Please try again.");
-        }
-
-        return responseText.trim();
+        return response.text;
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-
-        if (error instanceof GeminiError) {
-            throw error;
-        }
-
-        let userMessage = "Failed to get a response from the translation service.";
-        if (error instanceof Error) {
-            if (error.message.includes('API key not valid')) {
-                userMessage = "The provided API key is invalid. Please check your configuration.";
-            } else if (error.message.toLowerCase().includes('fetch failed') || error.message.toLowerCase().includes('networkerror')) {
-                userMessage = "A network error occurred. Please check your internet connection and try again.";
-            }
-        }
-        
-        throw new GeminiError(userMessage, error);
+        throw new Error("Failed to get a response from the translation service.");
     }
 }
 
