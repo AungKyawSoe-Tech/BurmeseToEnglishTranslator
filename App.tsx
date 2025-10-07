@@ -1,13 +1,12 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { translateBurmeseToEnglish, translateEnglishToBurmese } from './services/geminiService';
+import { translateBurmeseToEnglish, translateEnglishToBurmese, GeminiError } from './services/geminiService';
 import { Header } from './components/Header';
 import { LanguagePanel } from './components/LanguagePanel';
 import { TranslateButton } from './components/TranslateButton';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { HistoryPanel } from './components/HistoryPanel';
-import { XCircleIcon } from './components/icons';
+import { XCircleIcon, SwapIcon } from './components/icons';
 
 type Language = 'burmese' | 'english';
 
@@ -152,9 +151,14 @@ function App() {
       });
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(`Translation failed: ${errorMessage}`);
       console.error(err);
+      if (err instanceof GeminiError) {
+        setError(err.message);
+      } else if (err instanceof Error) {
+        setError(`An unexpected error occurred: ${err.message}`);
+      } else {
+        setError('An unknown error occurred during translation.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -309,6 +313,16 @@ function App() {
     setSourceLanguage('english');
   };
 
+  const handleSwapLanguages = () => {
+    if (isLoading) return;
+
+    setBurmeseText(englishText);
+    setEnglishText(burmeseText);
+    setSourceLanguage(prev => prev === 'burmese' ? 'english' : 'burmese');
+    setBurmeseError(null);
+    setEnglishError(null);
+  };
+
   const handleClearHistory = () => {
     setHistory([]);
     localStorage.removeItem('translationHistory');
@@ -344,7 +358,7 @@ function App() {
         <Header />
         <main className="mt-8 bg-white dark:bg-slate-800 shadow-2xl rounded-2xl p-6 sm:p-8">
           {!isSpeechRecognitionSupported && error && <ErrorDisplay message={error}/>}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-center">
             <LanguagePanel
               title="Burmese"
               value={burmeseText}
@@ -358,6 +372,19 @@ function App() {
               error={burmeseError}
               maxLength={MAX_CHARS}
             />
+
+            <div className="flex items-center justify-center my-2 md:my-0">
+                <button
+                    onClick={handleSwapLanguages}
+                    disabled={isLoading}
+                    className="p-2 rounded-full border-2 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-cyan-500 dark:hover:border-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-900 transition-all duration-300 transform hover:scale-110 rotate-90 md:rotate-0"
+                    aria-label="Swap languages"
+                    title="Swap languages"
+                >
+                    <SwapIcon />
+                </button>
+            </div>
+
             <div className="relative">
               <LanguagePanel
                 title="English"

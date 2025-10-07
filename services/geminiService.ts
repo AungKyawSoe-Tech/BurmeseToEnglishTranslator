@@ -1,33 +1,21 @@
-
 import { GoogleGenAI } from "@google/genai";
-import { API_KEY as LOCAL_API_KEY } from '../config.example';
 
-// This logic ensures the app works in both production (Vercel) and local development.
-// On Vercel, `process.env.API_KEY` will be set by the environment variables.
-// Locally, `process.env.API_KEY` will be undefined, so we fall back to the key
-// you've placed in `config.ts` (which is git-ignored for security).
-const GEMINI_API_KEY = process.env.API_KEY || (LOCAL_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' ? LOCAL_API_KEY : '');
-
-
-if (!GEMINI_API_KEY) {
-    const errorContainer = document.getElementById('root');
-    if (errorContainer) {
-        errorContainer.innerHTML = `
-            <div style="font-family: sans-serif; padding: 2rem; text-align: center; background-color: #fff3f3; border: 1px solid #ffcccc; border-radius: 8px; margin: 2rem;">
-                <h1 style="color: #d9534f; font-size: 1.5rem;">API Key Not Found</h1>
-                <p style="color: #333; font-size: 1rem;">
-                    <strong>For local development:</strong> Please create a <code>config.ts</code> file in the root directory by copying <code>config.example.ts</code> and adding your Gemini API key.
-                </p>
-                <p style="color: #333; font-size: 1rem; margin-top: 1rem;">
-                    <strong>For production (Vercel):</strong> Please ensure the <code>API_KEY</code> environment variable is set in your Vercel project settings.
-                </p>
-            </div>
-        `;
-    }
-    throw new Error("API_KEY not found. Please follow the setup instructions.");
+// Custom error class for more specific API error handling
+export class GeminiError extends Error {
+  constructor(message: string, public cause?: any) {
+    super(message);
+    this.name = 'GeminiError';
+  }
 }
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+// The API key must be set as an environment variable `API_KEY`.
+// This is handled automatically by the hosting environment (e.g., Vercel) or local setup.
+if (!process.env.API_KEY) {
+    // This error will be caught during development or at build time if the key is missing.
+    throw new Error("API_KEY environment variable not set. Please configure it in your deployment environment.");
+}
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const model = 'gemini-2.5-flash';
 
 async function callGemini(prompt: string): Promise<string> {
@@ -42,10 +30,33 @@ async function callGemini(prompt: string): Promise<string> {
             }
         });
 
-        return response.text.trim();
+        const responseText = response.text;
+        if (!responseText) {
+            const blockReason = response.candidates?.[0]?.finishReason;
+            if (blockReason && blockReason !== 'STOP') {
+                throw new GeminiError(`The response was blocked for safety reasons (${blockReason}). Please modify your input.`);
+            }
+            throw new GeminiError("The translation service returned an empty response. Please try again.");
+        }
+
+        return responseText.trim();
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-        throw new Error("Failed to get a response from the translation service.");
+
+        if (error instanceof GeminiError) {
+            throw error;
+        }
+
+        let userMessage = "Failed to get a response from the translation service.";
+        if (error instanceof Error) {
+            if (error.message.includes('API key not valid')) {
+                userMessage = "The provided API key is invalid. Please check your configuration.";
+            } else if (error.message.toLowerCase().includes('fetch failed') || error.message.toLowerCase().includes('networkerror')) {
+                userMessage = "A network error occurred. Please check your internet connection and try again.";
+            }
+        }
+        
+        throw new GeminiError(userMessage, error);
     }
 }
 

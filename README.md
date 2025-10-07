@@ -1,3 +1,4 @@
+
 # Burmese <> English Translator
 
 A modern and intuitive web application to translate text from Burmese to English using the power of the Gemini API. This application is a Progressive Web App (PWA), which means you can install it on your phone for a native app-like experience.
@@ -16,20 +17,22 @@ A modern and intuitive web application to translate text from Burmese to English
 
 ## Getting Started: Setting Up Your API Key
 
-Before you can run or deploy the app, you need to provide your Google Gemini API key.
+To run this application, you must provide your Google Gemini API key as an environment variable named `API_KEY`.
 
 ### For Local Development & Testing
 
-1.  **Get your API Key:** If you don't have one, get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-2.  **Create your config file:** In the project's root directory, find the file named `config.example.ts`.
-3.  **Rename the file** from `config.example.ts` to `config.ts`.
-4.  **Add your key:** Open the new `config.ts` and paste your API key into the placeholder string.
-
-Your `config.ts` file is listed in `.gitignore`, so it will be kept private on your computer and never uploaded to GitHub.
+Your local development environment must be configured to provide the `API_KEY` environment variable. If you don't have one, get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 
 ### For Production Deployment (Vercel)
 
-When you deploy your app to Vercel, you will use its Environment Variables system. This is the secure, standard way to handle secrets in production. The instructions are in the deployment section below.
+When you deploy your app to Vercel, you will use its Environment Variables system. This is the secure, standard way to handle secrets in production.
+
+1.  Go to your Vercel project's dashboard.
+2.  Navigate to the "Settings" tab and then the "Environment Variables" section.
+3.  Add a new variable:
+    *   **Name:** `API_KEY`
+    *   **Value:** Paste your Google Gemini API Key here.
+4.  Save the variable and redeploy your application for the changes to take effect.
 
 ---
 
@@ -47,19 +50,14 @@ To share this application, you need to host it online. We recommend using Vercel
 **Step 1: Push Your Code to GitHub**
 
 1.  Create a new repository on GitHub.
-2.  Follow the instructions on GitHub to push your project files to this new repository. **Do not** push your `config.ts` file (it should be ignored automatically by `.gitignore`).
+2.  Follow the instructions on GitHub to push your project files to this new repository.
 
 **Step 2: Deploy with Vercel**
 
 1.  Go to your [Vercel Dashboard](https://vercel.com/dashboard) and click "Add New... -> Project".
 2.  Under "Import Git Repository", select your newly created GitHub repository and click "Import".
 3.  Vercel will automatically detect that this is a static web project. You don't need to change any build settings.
-4.  **Crucial Step:** Before deploying, you must add your Gemini API Key.
-    *   Expand the "Environment Variables" section.
-    *   Add a new variable:
-        *   **Name:** `API_KEY`
-        *   **Value:** Paste your Google Gemini API Key here.
-    *   Click "Add".
+4.  **Crucial Step:** Before deploying, you must add your Gemini API Key as an environment variable, as described in the section above.
 5.  Click the "Deploy" button.
 
 That's it! Vercel will build and deploy your site, giving you a public URL (e.g., `your-project-name.vercel.app`) that you can share with your friends.
