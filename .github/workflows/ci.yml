@@ -1,0 +1,22 @@
+name: CI - Share API Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  test-share:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install deps
+        run: npm ci
+      - name: Run share API test
+        env:
+          TEST_API_BASE: ${{ secrets.TEST_API_BASE }}
+        run: node tests/test-share.js

@@ -6,6 +6,7 @@ import { LanguagePanel } from './components/LanguagePanel';
 import { TranslateButton } from './components/TranslateButton';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import FacebookPanel from './components/FacebookPanel';
 import { HistoryPanel } from './components/HistoryPanel';
 import { XCircleIcon } from './components/icons';
 
@@ -400,6 +401,13 @@ function App() {
           history={history}
           onClear={handleClearHistory}
           onItemClick={handleUseHistoryItem}
+        />
+        {/* Facebook sharing panel - requires VITE_FACEBOOK_APP_ID to be set */}
+        <FacebookPanel
+          shareText={
+            // Prefer the latest translation in the UI. If source is burmese, englishText holds the translation.
+            sourceLanguage === 'burmese' ? englishText : burmeseText
+          }
         />
       </div>
     </div>
